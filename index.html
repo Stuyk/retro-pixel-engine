@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RetroPixel Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <style>
+        :root {
+            --c-bg: #030303;
+            --c-card: #0a0a0f;
+            --c-surface: #111118;
+            --c-border: #1e3a4c;
+            --c-text: #b0b8c5;
+            --c-text-bright: #f0f4f8;
+            --c-accent: #00d4ff;
+            --c-accent-muted: #0e7490;
+            --vignette-color: rgba(0, 0, 0, 0.35);
+            --scanline-color: rgba(255, 255, 255, 0.007);
+            --grid-color: rgba(0, 212, 255, 0.06);
+            --shadow-inset: rgba(0, 212, 255, 0.04);
+        }
+
+        html.light-mode {
+            --c-bg: #fafbfc;
+            --c-card: #ffffff;
+            --c-surface: #f1f5f9;
+            --c-border: #cbd5e1;
+            --c-text: #1e293b;
+            --c-text-bright: #0f172a;
+            --c-accent: #0369a1;
+            --vignette-color: rgba(15, 23, 42, 0.08);
+            --scanline-color: rgba(0, 0, 0, 0.02);
+            --grid-color: rgba(3, 105, 161, 0.06);
+            --shadow-inset: rgba(3, 105, 161, 0.02);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background: var(--c-bg);
+            color: var(--c-text);
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 12px;
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 2px,
+                var(--scanline-color) 2px,
+                var(--scanline-color) 3px
+            );
+        }
+
+        /* Vignette effect */
+        body::after {
+            content: '';
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: radial-gradient(ellipse at center, transparent 40%, var(--vignette-color) 100%);
+        }
+
+        /* Range slider styling */
+        input[type="range"] {
+            display: block;
+            width: 100%;
+            height: 24px;
+            padding: 8px 0;
+            margin: 8px 0 0 0;
+            cursor: pointer;
+            background: transparent;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            margin-top: -5px;
+            border-radius: 50%;
+            background: var(--c-accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+            transition: all 0.2s ease;
+            border: 1px solid rgba(0, 212, 255, 0.6);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: linear-gradient(to right, rgba(0, 212, 255, 0.2), rgba(0, 212, 255, 0.15));
+            height: 6px;
+            border-radius: 3px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        html.light-mode input[type="range"]::-webkit-slider-thumb {
+            box-shadow: 0 0 10px rgba(3, 105, 161, 0.25);
+            border: 1px solid rgba(3, 105, 161, 0.5);
+        }
+
+        html.light-mode input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 15px rgba(3, 105, 161, 0.35);
+        }
+
+        html.light-mode input[type="range"]::-webkit-slider-runnable-track {
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.2), rgba(3, 105, 161, 0.15));
+            border: 1px solid rgba(3, 105, 161, 0.3);
+        }
+
+        html.light-mode input[type="range"]::-moz-range-thumb {
+            box-shadow: 0 0 10px rgba(3, 105, 161, 0.25);
+            border: 1px solid rgba(3, 105, 161, 0.5);
+        }
+
+        html.light-mode input[type="range"]::-moz-range-thumb:hover {
+            box-shadow: 0 0 15px rgba(3, 105, 161, 0.35);
+        }
+
+        html.light-mode input[type="range"]::-moz-range-track {
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.2), rgba(3, 105, 161, 0.15));
+            border: 1px solid rgba(3, 105, 161, 0.3);
+        }
+
+        html.light-mode input[type="range"]::-moz-range-progress {
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.3), rgba(3, 105, 161, 0.25));
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            -moz-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--c-accent);
+            cursor: pointer;
+            border: 1px solid rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: linear-gradient(to right, rgba(0, 212, 255, 0.2), rgba(0, 212, 255, 0.15));
+            height: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        input[type="range"]::-moz-range-progress {
+            background: linear-gradient(to right, rgba(0, 212, 255, 0.3), rgba(0, 212, 255, 0.25));
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        /* Styled checkbox */
+        input[type="checkbox"].styled-checkbox {
+            display: none;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+            color: var(--c-text);
+            font-size: 12px;
+        }
+
+        .checkbox-box {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--c-border);
+            border-radius: 3px;
+            background: var(--c-surface);
+            transition: all 0.15s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        input[type="checkbox"].styled-checkbox:checked + .checkbox-box {
+            background: var(--c-accent);
+            border-color: var(--c-accent);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.25);
+        }
+
+        input[type="checkbox"].styled-checkbox:checked + .checkbox-box::after {
+            content: '✓';
+            position: absolute;
+            top: -1px;
+            left: 3px;
+            color: var(--c-bg);
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .checkbox-label:hover .checkbox-box {
+            border-color: var(--c-accent);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
+        }
+
+        html.light-mode input[type="checkbox"].styled-checkbox:checked + .checkbox-box {
+            box-shadow: 0 0 10px rgba(3, 105, 161, 0.25);
+        }
+
+        html.light-mode input[type="checkbox"].styled-checkbox:checked + .checkbox-box::after {
+            color: #ffffff;
+        }
+
+        html.light-mode .checkbox-label:hover .checkbox-box {
+            box-shadow: 0 0 8px rgba(3, 105, 161, 0.18);
+        }
+
+        /* File input label */
+        .file-input-label {
+            display: block;
+            width: 100%;
+            padding: 11px 12px;
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--c-accent);
+            font-weight: 600;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--c-accent);
+            background: rgba(0, 212, 255, 0.06);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+        }
+
+        html.light-mode .file-input-label:hover {
+            background: rgba(3, 105, 161, 0.06);
+            box-shadow: 0 0 12px rgba(3, 105, 161, 0.18);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Button styles */
+        button {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 9px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--c-accent);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            outline: none;
+        }
+
+        button:hover {
+            border-color: var(--c-accent);
+            background: rgba(0, 212, 255, 0.12);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+        }
+
+        button:active {
+            background: rgba(0, 212, 255, 0.18);
+            box-shadow: inset 0 0 8px rgba(0, 212, 255, 0.1);
+        }
+
+        button:focus {
+            box-shadow: 0 0 1px var(--c-accent), inset 0 0 6px rgba(0, 212, 255, 0.06);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            color: var(--c-text);
+        }
+
+        html.light-mode button {
+            border-color: rgba(3, 105, 161, 0.4);
+            background: rgba(3, 105, 161, 0.08);
+            box-shadow: 0 0 0 0;
+        }
+
+        html.light-mode button:hover {
+            background: rgba(3, 105, 161, 0.12);
+            box-shadow: 0 0 12px rgba(3, 105, 161, 0.15);
+        }
+
+        html.light-mode button:active {
+            background: rgba(3, 105, 161, 0.18);
+            box-shadow: inset 0 0 8px rgba(3, 105, 161, 0.1);
+        }
+
+        html.light-mode button:focus {
+            box-shadow: 0 0 1px var(--c-accent), inset 0 0 6px rgba(3, 105, 161, 0.06);
+        }
+
+        select {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 7px 9px;
+            border: 1px solid var(--c-border);
+            background: var(--c-surface);
+            color: var(--c-accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            outline: none;
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%2300d4ff'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
+        }
+
+        select:hover {
+            border-color: var(--c-accent);
+            background-color: rgba(0, 212, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.12);
+        }
+
+        select:focus {
+            box-shadow: 0 0 1px var(--c-accent), inset 0 0 6px rgba(0, 212, 255, 0.06);
+        }
+
+        select option {
+            background: var(--c-bg);
+            color: var(--c-text);
+        }
+
+        html.light-mode select {
+            border-color: rgba(3, 105, 161, 0.4);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23036ca1'/%3E%3C/svg%3E");
+        }
+
+        html.light-mode select:hover {
+            border-color: var(--c-accent);
+            box-shadow: 0 0 10px rgba(3, 105, 161, 0.15);
+        }
+
+        html.light-mode select:focus {
+            box-shadow: 0 0 1px var(--c-accent), inset 0 0 6px rgba(3, 105, 161, 0.06);
+        }
+
+        /* Accent button (primary action) */
+        .accent-button {
+            background: var(--c-accent);
+            color: #000000 !important;
+            padding: 9px 12px;
+            font-size: 11px;
+            font-weight: 800 !important;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+            box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .accent-button:hover {
+            box-shadow: 0 0 22px rgba(0, 212, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .accent-button:active {
+            transform: translateY(0);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.4), inset 0 0 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .accent-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        html.light-mode .accent-button {
+            background: #0369a1;
+            color: #ffffff !important;
+            box-shadow: 0 0 12px rgba(3, 105, 161, 0.25);
+            font-weight: 800 !important;
+            font-size: 11px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        html.light-mode .accent-button:hover {
+            box-shadow: 0 0 18px rgba(3, 105, 161, 0.35);
+            transform: translateY(-1px);
+        }
+
+        html.light-mode .accent-button:active {
+            box-shadow: 0 0 10px rgba(3, 105, 161, 0.3), inset 0 0 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(0);
+        }
+
+        /* Light mode section improvements */
+        html.light-mode section {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Light mode button overrides for consistency */
+        html.light-mode button {
+            border-color: rgba(3, 105, 161, 0.4);
+            background: rgba(3, 105, 161, 0.08);
+            color: #0369a1;
+        }
+
+        html.light-mode button:hover {
+            background: rgba(3, 105, 161, 0.12);
+            box-shadow: 0 0 12px rgba(3, 105, 161, 0.15);
+        }
+    </style>
+
+</head>
+
+<body style="background: var(--c-bg); color: var(--c-text); height: 100vh; display: flex; flex-direction: column; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; transition: background-color 0.3s ease, color 0.3s ease; margin: 0; padding: 0;">
+    <header style="background: var(--c-card); border-bottom: 1px solid var(--c-border); height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 16px;">
+        <div style="font-size: 14px; font-weight: 700; color: var(--c-accent); letter-spacing: 0.1em;">RETROPIXEL ENGINE</div>
+        <button id="themeToggle" style="background: var(--c-surface); border: 1px solid var(--c-border); padding: 8px 12px; border-radius: 3px; color: var(--c-accent); cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; transition: all 0.15s ease; font-family: inherit;">
+            THEME
+        </button>
+    </header>
+
+    <main style="flex: 1; display: flex; overflow: hidden;">
+        <div id="viewport"
+            style="flex: 1; background: var(--c-bg); background-image: linear-gradient(0deg, var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px); background-size: 50px 50px; position: relative; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--c-border); box-shadow: inset 0 0 16px var(--shadow-inset);"></div>
+
+        <aside style="width: 320px; background: var(--c-card); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; border-left: 1px solid var(--c-border);">
+            <!-- Model & Texture Import - FIRST SECTION (Top Priority) -->
+            <section style="border: 1px solid var(--c-border); padding: 13px; background: var(--c-surface); border-radius: 4px;">
+                <h2 style="font-weight: 700; margin-bottom: 12px; color: var(--c-accent); letter-spacing: 0.08em; font-size: 12px;">IMPORT 3D ASSET</h2>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="position: relative;">
+                        <input type="file" id="modelInput" accept=".obj" style="display: none;" />
+                        <label for="modelInput" class="file-input-label">Load 3D Model (.obj)</label>
+                    </div>
+                    <div style="position: relative;">
+                        <input type="file" id="textureInput" accept="image/*" style="display: none;" />
+                        <label for="textureInput" class="file-input-label">Load Texture</label>
+                    </div>
+                </div>
+            </section>
+
+            <section style="border: 1px solid var(--c-border); padding: 13px; background: var(--c-surface); border-radius: 4px; backdrop-filter: blur(4px);">
+                <h2 style="font-weight: 700; margin-bottom: 10px; color: var(--c-accent); letter-spacing: 0.08em; font-size: 12px;">PIXELATION</h2>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Pixel Size</label>
+                        <span id="sizeVal" style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">1</span>
+                    </div>
+                    <input type="range" id="pixelSize" min="1" max="20" value="1" style="width: 100%;" />
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="color: var(--c-text-bright); font-size: 12px; margin-bottom: 4px; display: block; font-weight: 500;">Dither Type</label>
+                    <select id="ditherType" style="width: 100%; background: var(--c-surface); border: 1px solid var(--c-border); color: var(--c-accent); font-size: 11px; padding: 7px 9px; border-radius: 4px; font-family: inherit; cursor: pointer;">
+                        <option value="bayer">Ordered (GameBoy)</option>
+                        <option value="floyd">Smooth (Floyd-Steinberg)</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Dither Strength</label>
+                        <span id="ditherVal" style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">0%</span>
+                    </div>
+                    <input type="range" id="ditherStrength" min="0" max="100" value="0" style="width: 100%;" />
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Dither Size</label>
+                        <span id="ditherSizeVal" style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">1</span>
+                    </div>
+                    <input type="range" id="ditherSize" min="1" max="10" value="1" style="width: 100%;" />
+                </div>
+            </section>
+
+            <section style="border: 1px solid var(--c-border); padding: 13px; background: var(--c-surface); border-radius: 4px; backdrop-filter: blur(4px);">
+                <h2 style="font-weight: 700; margin-bottom: 10px; color: var(--c-accent); letter-spacing: 0.08em; font-size: 12px;">GRADING</h2>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Exposure</label>
+                        <span style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">100</span>
+                    </div>
+                    <input type="range" id="exposure" min="50" max="200" value="100" style="width: 100%;" />
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Brightness</label>
+                        <span style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">0</span>
+                    </div>
+                    <input type="range" id="brightness" min="-100" max="100" value="0" style="width: 100%;" />
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Contrast</label>
+                        <span style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">100</span>
+                    </div>
+                    <input type="range" id="contrast" min="0" max="200" value="100" style="width: 100%;" />
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; height: 16px;">
+                        <label style="color: var(--c-text-bright); font-size: 12px; margin: 0; font-weight: 500;">Saturation</label>
+                        <span style="color: var(--c-accent); font-weight: 700; font-size: 12px; margin: 0;">100</span>
+                    </div>
+                    <input type="range" id="saturation" min="0" max="200" value="100" style="width: 100%;" />
+                </div>
+            </section>
+
+            <section style="border: 1px solid var(--c-border); padding: 13px; background: var(--c-surface); border-radius: 4px; backdrop-filter: blur(4px);">
+                <h2 style="font-weight: 700; margin-bottom: 10px; color: var(--c-accent); letter-spacing: 0.08em; font-size: 12px;">PALETTE & COLORS</h2>
+                <label class="checkbox-label" style="margin-bottom: 12px;">
+                    <input type="checkbox" id="paletteToggle" class="styled-checkbox" />
+                    <div class="checkbox-box"></div>
+                    <span style="color: var(--c-text-bright); font-size: 12px; font-weight: 500;">Use Palette Impact</span>
+                </label>
+                
+                <div id="paletteList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                    <!-- colors will be inserted here -->
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <button id="addColor" class="accent-button" style="flex: 1;">
+                        + Add Color
+                    </button>
+                    <button id="exportPalette" class="accent-button" style="flex: 1;">
+                        Export
+                    </button>
+                </div>
+                <input type="file" id="paletteInput" accept=".hex" style="display: none;" />
+                <button id="importPalette" class="accent-button" style="width: 100%;">
+                    Import .hex
+                </button>
+            </section>
+
+            <section style="border: 1px solid var(--c-border); padding: 13px; background: var(--c-surface); border-radius: 4px; backdrop-filter: blur(4px);">
+                <h2 style="font-weight: 700; margin-bottom: 10px; color: var(--c-accent); letter-spacing: 0.08em; font-size: 12px;">OUTPUT & ACTIONS</h2>
+                <button id="exportBtn" class="accent-button" style="width: 100%;">
+                    EXPORT
+                </button>
+            </section>
+        </aside>
+    </main>
+
+    <script>
+        // Dark/Light mode toggle logic
+        function initTheme() {
+            const saved = localStorage.getItem('pixelTheme') || 'dark';
+            const html = document.documentElement;
+            
+            if (saved === 'light') {
+                html.classList.add('light-mode');
+                document.getElementById('themeToggle').textContent = 'LIGHT';
+            } else {
+                html.classList.remove('light-mode');
+                document.getElementById('themeToggle').textContent = 'DARK';
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const btn = document.getElementById('themeToggle');
+            const isLight = html.classList.contains('light-mode');
+            
+            if (isLight) {
+                html.classList.remove('light-mode');
+                btn.textContent = 'DARK';
+                localStorage.setItem('pixelTheme', 'dark');
+            } else {
+                html.classList.add('light-mode');
+                btn.textContent = 'LIGHT';
+                localStorage.setItem('pixelTheme', 'light');
+            }
+        }
+
+        // Initialize theme on page load
+        initTheme();
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    </script>
+
+    <script type="module">
+        import * as THREE from "three";
+        import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+        import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+        //--------------------------------------------------
+        // TextureProcessor: Encapsulates all canvas transformations
+        //--------------------------------------------------
+        class TextureProcessor {
+            constructor(bayerMatrix) {
+                this.BAYER_4X4 = bayerMatrix;
+                this.canvasPool = [];  // Canvas pooling for performance
+            }
+
+            // Get or create a canvas from pool
+            getPooledCanvas(width, height) {
+                const canvas = this.canvasPool.find(c => c.width === width && c.height === height) ||
+                    document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                return canvas;
+            }
+
+            // Clone a canvas to fresh copy (never mutate originals)
+            clone(canvas) {
+                const cloned = this.getPooledCanvas(canvas.width, canvas.height);
+                const ctx = cloned.getContext("2d", { willReadFrequently: true });
+                ctx.drawImage(canvas, 0, 0);
+                return cloned;
+            }
+
+            // Pixelate canvas by reducing resolution then scaling back up
+            pixelate(canvas, pixelSize) {
+                if (pixelSize <= 1) return this.clone(canvas);
+                
+                const w = canvas.width;
+                const h = canvas.height;
+                const smallW = Math.max(1, Math.floor(w / pixelSize));
+                const smallH = Math.max(1, Math.floor(h / pixelSize));
+
+                const temp = this.getPooledCanvas(smallW, smallH);
+                const tctx = temp.getContext("2d", { willReadFrequently: true });
+                tctx.imageSmoothingEnabled = false;
+                tctx.drawImage(canvas, 0, 0, smallW, smallH);
+
+                const dst = this.getPooledCanvas(w, h);
+                const dctx = dst.getContext("2d", { willReadFrequently: true });
+                dctx.imageSmoothingEnabled = false;
+                dctx.drawImage(temp, 0, 0, w, h);
+                return dst;
+            }
+
+            // Bounds-safe quantization to 16-level palette
+            quantizeTo16(value) {
+                const clamped = Math.max(0, Math.min(255, value));
+                return Math.round((clamped / 255) * 15) * (255 / 15);
+            }
+
+            // Apply palette dithering (Bayer or Floyd-Steinberg)
+            applyPaletteAndDither(canvas, palette, ditherType, ditherStrength, ditherSize) {
+                const cloned = this.clone(canvas);
+                const usePalette = palette.length > 0;
+                const strength = ditherStrength / 100;
+                const dSize = Math.max(1, Math.floor(ditherSize));
+
+                const w = cloned.width;
+                const h = cloned.height;
+                const ctx = cloned.getContext("2d", { willReadFrequently: true });
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const fData = new Float32Array(imgData.data);
+
+                const paletteRGB = palette.map((c) => {
+                    const col = new THREE.Color(c);
+                    return [col.r * 255, col.g * 255, col.b * 255];
+                });
+
+                // Find nearest palette color or quantize
+                const getNearest = (r, g, b) => {
+                    if (!usePalette) {
+                        return [
+                            this.quantizeTo16(r),
+                            this.quantizeTo16(g),
+                            this.quantizeTo16(b)
+                        ];
+                    }
+                    let bestDist = Infinity;
+                    let best = [r, g, b];
+                    for (const p of paletteRGB) {
+                        const d = (r - p[0]) ** 2 + (g - p[1]) ** 2 + (b - p[2]) ** 2;
+                        if (d < bestDist) {
+                            bestDist = d;
+                            best = p;
+                        }
+                    }
+                    return best;
+                };
+
+                if (strength === 0 && !usePalette) {
+                    // No dithing, no palette: skip processing
+                    return cloned;
+                }
+
+                if (ditherType === "bayer") {
+                    // Ordered (Bayer) Dithering
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const i = (y * w + x) * 4;
+
+                            const mx = Math.floor(x / dSize) % 4;
+                            const my = Math.floor(y / dSize) % 4;
+                            const threshold = (this.BAYER_4X4[my][mx] - 7.5) / 16.0;  // Symmetric
+
+                            const shift = threshold * strength * 128;
+                            const [nr, ng, nb] = getNearest(
+                                fData[i] + shift,
+                                fData[i + 1] + shift,
+                                fData[i + 2] + shift
+                            );
+
+                            fData[i] = nr;
+                            fData[i + 1] = ng;
+                            fData[i + 2] = nb;
+                        }
+                    }
+                } else {
+                    // Floyd-Steinberg Error Diffusion
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const i = (y * w + x) * 4;
+                            const oldR = fData[i];
+                            const oldG = fData[i + 1];
+                            const oldB = fData[i + 2];
+                            
+                            const [nr, ng, nb] = getNearest(oldR, oldG, oldB);
+                            fData[i] = nr;
+                            fData[i + 1] = ng;
+                            fData[i + 2] = nb;
+
+                            // Error propagation with bounds clipping
+                            const errR = Math.max(-128, Math.min(128, (oldR - nr) * strength));
+                            const errG = Math.max(-128, Math.min(128, (oldG - ng) * strength));
+                            const errB = Math.max(-128, Math.min(128, (oldB - nb) * strength));
+
+                            const distribute = (nx, ny, factor) => {
+                                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                    const j = (ny * w + nx) * 4;
+                                    fData[j] = Math.max(0, Math.min(255, fData[j] + errR * factor));
+                                    fData[j + 1] = Math.max(0, Math.min(255, fData[j + 1] + errG * factor));
+                                    fData[j + 2] = Math.max(0, Math.min(255, fData[j + 2] + errB * factor));
+                                }
+                            };
+                            distribute(x + 1, y, 7 / 16);
+                            distribute(x - 1, y + 1, 3 / 16);
+                            distribute(x, y + 1, 5 / 16);
+                            distribute(x + 1, y + 1, 1 / 16);
+                        }
+                    }
+                }
+
+                for (let i = 0; i < imgData.data.length; i++) {
+                    imgData.data[i] = fData[i];
+                }
+                ctx.putImageData(imgData, 0, 0);
+                return cloned;
+            }
+
+            // Apply brightness, contrast, saturation, exposure grading
+            applyGrading(canvas, settings) {
+                const cloned = this.clone(canvas);
+                const ctx = cloned.getContext("2d", { willReadFrequently: true });
+                const imgData = ctx.getImageData(0, 0, cloned.width, cloned.height);
+                const data = imgData.data;
+
+                const exposure = settings.exposure / 100;
+                const brightness = settings.brightness / 100;
+                const contrast = settings.contrast / 100;
+                const saturation = settings.saturation / 100;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    let r = data[i] * exposure + brightness * 255;
+                    let g = data[i + 1] * exposure + brightness * 255;
+                    let b = data[i + 2] * exposure + brightness * 255;
+
+                    r = (r - 128) * contrast + 128;
+                    g = (g - 128) * contrast + 128;
+                    b = (b - 128) * contrast + 128;
+
+                    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    r = lum + (r - lum) * saturation;
+                    g = lum + (g - lum) * saturation;
+                    b = lum + (b - lum) * saturation;
+
+                    data[i] = Math.max(0, Math.min(255, r));
+                    data[i + 1] = Math.max(0, Math.min(255, g));
+                    data[i + 2] = Math.max(0, Math.min(255, b));
+                }
+                ctx.putImageData(imgData, 0, 0);
+                return cloned;
+            }
+
+            // Chain all processing stages with proper cloning
+            processTexture(originalCanvas, settings, palette) {
+                let result = originalCanvas;
+                
+                // Stage 1: Pixelate
+                if (settings.pixelSize > 1) {
+                    result = this.pixelate(result, settings.pixelSize);
+                }
+
+                // Stage 2: Palette & Dithering
+                if (settings.usePaletteImpact || settings.ditherStrength > 0) {
+                    result = this.applyPaletteAndDither(
+                        result,
+                        palette,
+                        settings.ditherType || "bayer",
+                        settings.ditherStrength,
+                        settings.ditherSize
+                    );
+                }
+
+                // Stage 3: Grading (brightness, contrast, saturation, exposure)
+                result = this.applyGrading(result, settings);
+
+                return result;
+            }
+        }
+
+        // Initialize Scene
+        const scene = new THREE.Scene();
+        const size = 16;
+        const divisions = 8;
+        const colorCenterLine = 0xffffff;
+        const colorGrid = 0x888888;
+
+        const gridHelper = new THREE.GridHelper(size, divisions, colorCenterLine, colorGrid);
+
+        // Add it to your scene
+        scene.add(gridHelper);
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000,
+        );
+        const viewport = document.getElementById("viewport");
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+
+        renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        viewport.appendChild(renderer.domElement);
+
+        // Initialize TextureProcessor with Bayer matrix
+        const BAYER_4X4 = [
+            [0, 8, 2, 10],
+            [12, 4, 14, 6],
+            [3, 11, 1, 9],
+            [15, 7, 13, 5],
+        ];
+        const processor = new TextureProcessor(BAYER_4X4);
+
+        camera.position.set(0, 2, 5);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 1;
+        controls.maxDistance = 20;
+        controls.maxPolarAngle = Math.PI * 0.95;
+
+        window.addEventListener("resize", () => {
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+            camera.aspect = viewport.clientWidth / viewport.clientHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // Lights
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // Load Model (Simple Loader Setup)
+        let currentModel = null;
+        let lastTextureURL = null;
+
+        function prepareTexture(tex) {
+            if (!tex) return;
+            // ensure nearest filtering
+            tex.minFilter = THREE.NearestFilter;
+            tex.magFilter = THREE.NearestFilter;
+            tex.generateMipmaps = false;
+            // if we already stored it, skip
+            if (originalTextures.has(tex.uuid)) return;
+            const img = tex.image;
+            if (!img) return;
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            canvas._associatedTexture = tex;
+            originalTextures.set(tex.uuid, canvas);
+        }
+
+        function applyTextureFromURL(url) {
+            if (!url || !currentModel) return;
+            // manually create image and texture to avoid loader caching
+            const img = new Image();
+            img.onload = () => {
+                const tex = new THREE.Texture(img);
+                tex.minFilter = THREE.NearestFilter;
+                tex.magFilter = THREE.NearestFilter;
+                tex.generateMipmaps = false;
+                tex.needsUpdate = true;
+
+                const canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                ctx.drawImage(img, 0, 0);
+                canvas._associatedTexture = tex;
+                originalTextures.set(tex.uuid, canvas);
+
+                currentModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material.map = tex;
+                        child.material.needsUpdate = true;
+                    }
+                });
+                updateControlsState();  // Enable effect controls
+                scheduleUpdate();  // Use deferred scheduling instead of immediate update
+            };
+            img.src = url;
+        }
+
+        function resetSettings() {
+            // revert all sliders/values to neutral defaults
+            settings.pixelSize = 1;
+            settings.usePaletteImpact = false;  // Don't use palette by default
+            settings.ditherStrength = 0;
+            settings.ditherSize = 1;
+            settings.exposure = 100;
+            settings.brightness = 0;
+            settings.contrast = 100;
+            settings.saturation = 100;
+            palette.splice(0); // clear any imported colors
+            updatePaletteDisplay();
+            applySettingsToUI();
+            scheduleUpdate();
+            saveState();
+        }
+
+        function focusCameraOnModel() {
+            if (!currentModel) return;
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            // position camera slightly above and back based on model size
+            const distance = Math.max(size.x, size.y, size.z) * 1.5 + 1;
+            camera.position
+                .copy(center)
+                .add(new THREE.Vector3(0, distance * 0.5, distance));
+            controls.target.copy(center);
+            camera.updateProjectionMatrix();
+            controls.update();
+        }
+
+        function loadModel(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // Clear old textures when loading new model
+                originalTextures.clear();
+                updateControlsState();  // Disable controls until new texture loaded
+                currentModelUUID = THREE.MathUtils.generateUUID();
+                // reset grading/pixelation defaults when new model arrives
+                resetSettings();
+                const loader = new OBJLoader();
+                const obj = loader.parse(event.target.result);
+                if (currentModel) scene.remove(currentModel);
+                currentModel = obj;
+                scene.add(obj);
+                // capture any textures already referenced by materials
+                obj.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        const mats = Array.isArray(child.material)
+                            ? child.material
+                            : [child.material];
+                        mats.forEach((m) => {
+                            if (m.map) prepareTexture(m.map);
+                        });
+                    }
+                });
+                if (originalTextures.size > 0) {
+                    updateControlsState();  // Re-enable if model has embedded textures
+                }
+                // defer updates to avoid redundant processing
+                scheduleUpdate();
+                // if a texture was chosen earlier, apply it now
+                if (lastTextureURL) applyTextureFromURL(lastTextureURL);
+                // refocus camera
+                focusCameraOnModel();
+            };
+            reader.readAsText(file);
+        }
+
+        //--------------------------------------------------
+        // texture pixelation support (using TextureProcessor)
+        //--------------------------------------------------
+        // map of texture.uuid -> original canvas so we can reapply pixelation
+        const originalTextures = new Map();
+        let currentModelUUID = null;  // Track which model is currently loaded
+
+        function updateTexturePixelation() {
+            originalTextures.forEach((origCanvas, uuid) => {
+                const tex = origCanvas._associatedTexture;
+                if (!tex) return;
+                // Use TextureProcessor to apply all transformations with proper cloning
+                const processed = processor.processTexture(origCanvas, settings, palette);
+                tex.image = processed;
+                tex.needsUpdate = true;
+            });
+        }
+
+        document
+            .getElementById("textureInput")
+            .addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                // new texture should also reset grading/pixel defaults
+                resetSettings();
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const url = evt.target.result;
+                    lastTextureURL = url;
+                    applyTextureFromURL(url);
+                    // reset input so same file can be chosen again
+                    e.target.value = "";
+                };
+                reader.readAsDataURL(file);
+            });
+
+        document.getElementById("modelInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) loadModel(file);
+        });
+
+        document.getElementById("ditherType").addEventListener("change", (e) => {
+            settings.ditherType = e.target.value;
+            scheduleUpdate();
+        });
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            // render scene normally
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // state for controls
+        const settings = {
+            pixelSize: 1,
+            usePaletteImpact: true,
+            ditherStrength: 0,
+            ditherSize: 1,
+            exposure: 100,
+            brightness: 0,
+            contrast: 100,
+            saturation: 100,
+            ditherType: "bayer",
+        };
+
+        const palette = [];
+
+        // persistence
+        function saveState() {
+            try {
+                const data = { settings, palette };
+                localStorage.setItem("retroPixelState", JSON.stringify(data));
+            } catch (e) {
+                console.warn("failed to save state", e);
+            }
+        }
+        function loadState() {
+            try {
+                const raw = localStorage.getItem("retroPixelState");
+                if (raw) {
+                    const obj = JSON.parse(raw);
+                    Object.assign(settings, obj.settings || {});
+                    palette.splice(0, palette.length, ...(obj.palette || []));
+                    applySettingsToUI();
+                    updatePaletteDisplay();
+                    updateRenderer();
+                }
+            } catch (e) {
+                console.warn("failed to load state", e);
+            }
+        }
+        function applySettingsToUI() {
+            document.getElementById("pixelSize").value = settings.pixelSize;
+            document.getElementById("sizeVal").innerText = settings.pixelSize;
+            document.getElementById("ditherStrength").value =
+                settings.ditherStrength;
+            document.getElementById("ditherVal").innerText =
+                settings.ditherStrength + "%";
+            document.getElementById("ditherSize").value = settings.ditherSize;
+            document.getElementById("ditherType").value = settings.ditherType;
+            document.getElementById("ditherSizeVal").innerText =
+                settings.ditherSize;
+            
+            // Handle styled checkbox
+            const paletteCheckbox = document.getElementById("paletteToggle");
+            paletteCheckbox.checked = settings.usePaletteImpact;
+            
+            ["exposure", "brightness", "contrast", "saturation"].forEach((id) => {
+                const el = document.getElementById(id);
+                el.value = settings[id];
+            });
+        }
+
+        function updatePaletteDisplay() {
+            const container = document.getElementById("paletteList");
+            container.innerHTML = "";
+            palette.forEach((col, idx) => {
+                const div = document.createElement("div");
+                div.style.background = col || "transparent";
+                div.style.width = "24px";
+                div.style.height = "24px";
+                div.style.border = "1px solid var(--c-border)";
+                div.style.cursor = "pointer";
+                div.style.borderRadius = "3px";
+                div.style.transition = "all 0.15s ease";
+                div.style.outline = "none";
+                div.title = col;
+                div.tabIndex = 0;
+                div.addEventListener("click", () => {
+                    if (confirm("Remove color " + col + "?")) {
+                        palette.splice(idx, 1);
+                        updatePaletteDisplay();
+                        updateRenderer();
+                    }
+                });
+                div.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        if (confirm("Remove color " + col + "?")) {
+                            palette.splice(idx, 1);
+                            updatePaletteDisplay();
+                            updateRenderer();
+                        }
+                    }
+                });
+                div.addEventListener("mouseenter", function() {
+                    this.style.boxShadow = "0 0 12px rgba(6, 182, 212, 0.16)";
+                });
+                div.addEventListener("mouseleave", function() {
+                    this.style.boxShadow = "none";
+                });
+                container.appendChild(div);
+            });
+        }
+
+        let updateScheduled = false;
+        function updateRenderer() {
+            // textures drive all visual changes now
+            updateTexturePixelation();
+            saveState();
+        }
+
+        function scheduleUpdate() {
+            if (updateScheduled) return;
+            updateScheduled = true;
+            requestAnimationFrame(() => {
+                updateRenderer();
+                updateScheduled = false;
+            });
+        }
+
+        // Enable/disable effect controls based on texture presence
+        function updateControlsState() {
+            const hasTexture = originalTextures.size > 0;
+            const controlIds = [
+                "pixelSize", "ditherStrength", "ditherSize", "ditherType",
+                "exposure", "brightness", "contrast", "saturation",
+                "paletteToggle", "addColor", "exportPalette", "importPalette"
+            ];
+            
+            controlIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = !hasTexture;
+                    if (!hasTexture) {
+                        el.style.opacity = "0.5";
+                        el.style.cursor = "not-allowed";
+                    } else {
+                        el.style.opacity = "1";
+                        el.style.cursor = "pointer";
+                    }
+                }
+            });
+        }
+
+        // UI Listeners
+        document.getElementById("pixelSize").addEventListener("input", (e) => {
+            settings.pixelSize = parseInt(e.target.value);
+            document.getElementById("sizeVal").innerText = e.target.value;
+            scheduleUpdate();
+        });
+
+        document
+            .getElementById("ditherStrength")
+            .addEventListener("input", (e) => {
+                settings.ditherStrength = parseInt(e.target.value);
+                document.getElementById("ditherVal").innerText = e.target.value + "%";
+                scheduleUpdate();
+            });
+        document.getElementById("ditherSize").addEventListener("input", (e) => {
+            settings.ditherSize = parseInt(e.target.value);
+            document.getElementById("ditherSizeVal").innerText = e.target.value;
+            scheduleUpdate();
+        });
+        document
+            .getElementById("paletteToggle")
+            .addEventListener("change", (e) => {
+                settings.usePaletteImpact = e.target.checked;
+                scheduleUpdate();
+            });
+
+        ["exposure", "brightness", "contrast", "saturation"].forEach((id) => {
+            const el = document.getElementById(id);
+            el.addEventListener("input", (e) => {
+                settings[id] = parseInt(e.target.value);
+                scheduleUpdate();
+            });
+        });
+        // load saved state if any
+        loadState();
+        updateControlsState();  // Initialize control state based on loaded textures
+
+        document.getElementById("addColor").addEventListener("click", () => {
+            let color = prompt("Enter hex color (e.g. #ff0000)");
+            if (color) {
+                color = color.trim();
+                if (!color.startsWith("#")) color = "#" + color;
+                // simple validation: must be #RGB or #RRGGBB
+                if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
+                    palette.push(color);
+                    updatePaletteDisplay();
+                    updateRenderer();
+                } else {
+                    alert("Invalid hex color");
+                }
+            }
+        });
+        document.getElementById("exportPalette").addEventListener("click", () => {
+            const blob = new Blob([palette.join("\n")], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "palette.hex";
+            a.click();
+        });
+        document.getElementById("importPalette").addEventListener("click", () => {
+            document.getElementById("paletteInput").click();
+        });
+        document
+            .getElementById("paletteInput")
+            .addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const lines = evt.target.result
+                        .split(/\r?\n/)
+                        .map((l) => l.trim())
+                        .filter((l) => l)
+                        .map((l) => {
+                            if (!l.startsWith("#")) l = "#" + l;
+                            return l;
+                        })
+                        .filter((l) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(l));
+                    palette.splice(0, palette.length, ...lines);
+                    updatePaletteDisplay();
+                    updateRenderer();
+                };
+                reader.readAsText(file);
+            });
+
+        document.getElementById("exportBtn").addEventListener("click", () => {
+            // ensure textures are up to date in scene
+            updateTexturePixelation();
+            // export a processed copy of each original canvas
+            let idx = 0;
+            originalTextures.forEach((origCanvas, uuid) => {
+                // Use processor to apply all transformations with proper cloning
+                const processed = processor.processTexture(origCanvas, settings, palette);
+                processed.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `texture-${idx++}.png`;
+                    a.click();
+                });
+            });
+            // if no textures exist, fallback to canvas screenshot
+            if (originalTextures.size === 0) {
+                renderer.render(scene, camera);
+                renderer.domElement.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "pixelized.png";
+                    a.click();
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
