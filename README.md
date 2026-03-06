@@ -6,6 +6,8 @@ A powerful web-based tool for transforming 3D models and textures into retro pix
 
 RetroPixel Engine is an interactive 3D texture processing application that combines modern web technologies (Three.js, Canvas API) with classic pixel art techniques. Load OBJ models, apply textures, and apply sophisticated pixelation, dithering, and color grading effects in real-time.
 
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/055c961c-3685-4a43-905c-b9283bfa15cc" />
+
 ## Core Features
 
 ### 3D Model Support
